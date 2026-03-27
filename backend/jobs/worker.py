@@ -15,7 +15,13 @@ from backend.services import session_service, cache_service
 
 log = get_logger("backend.worker")
 
-_MAX_WORKERS = int(os.getenv("MAX_WORKERS", "20"))
+def _default_max_workers() -> int:
+    cpu_count = os.cpu_count() or 1
+    # Keep Render-friendly defaults; large process pools tend to crash small instances.
+    return max(1, min(2, cpu_count))
+
+
+_MAX_WORKERS = int(os.getenv("MAX_WORKERS", str(_default_max_workers())))
 _pool: Optional[ProcessPoolExecutor] = None
 
 
@@ -23,11 +29,12 @@ def get_pool() -> ProcessPoolExecutor:
     global _pool
     if _pool is None:
         import multiprocessing
+        mp_context_name = "spawn" if os.name == "nt" else os.getenv("MP_CONTEXT", "fork")
         _pool = ProcessPoolExecutor(
             max_workers = _MAX_WORKERS,
-            mp_context  = multiprocessing.get_context("spawn"),
+            mp_context  = multiprocessing.get_context(mp_context_name),
         )
-        log.info(f"Process pool ready — {_MAX_WORKERS} workers")
+        log.info(f"Process pool ready — {_MAX_WORKERS} workers ({mp_context_name})")
     return _pool
 
 
