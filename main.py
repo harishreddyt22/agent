@@ -32,6 +32,11 @@ from backend.jobs.worker         import get_pool, shutdown_pool
 log = get_logger("main")
 
 
+def _worker_capacity() -> int:
+    cpu_count = os.cpu_count() or 1
+    return int(os.getenv("MAX_WORKERS", str(max(1, min(2, cpu_count)))))
+
+
 # ══════════════════════════════════════════════════════════════
 # LIFESPAN — startup + shutdown (replaces deprecated on_event)
 # ══════════════════════════════════════════════════════════════
@@ -45,7 +50,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         log.warning(f"DB init failed: {e}")
     get_pool()   # warm up process pool
-    log.info("🚀 Procurement Agent started — 20 concurrent users supported")
+    log.info(f"🚀 Procurement Agent started — worker capacity {_worker_capacity()}")
 
     yield   # app runs here
 
