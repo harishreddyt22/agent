@@ -3,6 +3,7 @@ backend/routes/api.py
 JSON API routes — job polling, health check, session state, GPU check.
 """
 import asyncio
+import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi import Request
@@ -14,6 +15,11 @@ from backend.services import session_service, cache_service
 
 log    = get_logger("backend.routes.api")
 router = APIRouter(prefix="/api")
+
+
+def _worker_capacity() -> int:
+    cpu_count = os.cpu_count() or 1
+    return int(os.getenv("MAX_WORKERS", str(max(1, min(2, cpu_count)))))
 
 
 @router.get("/job/{job_id}")
@@ -45,7 +51,7 @@ async def health():
         "active_sessions": session_service.active_count(),
         "running_jobs":    job_registry.running_count(),
         "queued_jobs":     job_registry.pending_count(),
-        "worker_capacity": 20,
+        "worker_capacity": _worker_capacity(),
         "cache_entries":   cache_service.size(),
         "timestamp":       datetime.now().isoformat(),
     })
