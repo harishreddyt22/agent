@@ -41,6 +41,7 @@ from src.extractors.extract_sow_schedules import extract_sow_schedules
 from src.extractors.extract_po import extract_po
 from src.extractors.validate_procurement import run_validation
 from src.prompts.audit_prompt import build_audit_prompt
+from src.handlers.error_handler import handle_extraction_error
 
 
 # ──────────────────────────────────────────────────────────────
@@ -65,23 +66,22 @@ def node_check_gpu_health(state: AgentState) -> dict:
 # NODE 2 — Extract metadata
 # ──────────────────────────────────────────────────────────────
 def node_extract_metadata(state: AgentState) -> dict:
-    print("\n📑 [Agent] Extracting company metadata...")
+    log.info("\n📑 [Agent] Extracting company metadata...")
     try:
         df = extract_metadata(
             state["sow_path"],
             sow_upload_dt=state.get("sow_upload_dt"),
             po_upload_dt=state.get("po_upload_dt")
         )
-        if df.empty:
-            raise ValueError("Metadata DataFrame is empty")
+        # An empty DataFrame is not necessarily an error, just means no metadata found.
+        # The agent can decide how to proceed with or without it.
         notes = state.get("extraction_notes", [])
         notes.append(f"Metadata extracted: company={df.iloc[0].get('company_name','?')}")
         return {"df_metadata": df, "metadata_ok": True, "extraction_notes": notes, "metadata_retries": 0}
     except Exception as e:
-        retries = state.get("metadata_retries", 0)
-        print(f"⚠️  [Agent] Metadata extraction failed (attempt {retries+1}): {e}")
-        return {"metadata_ok": False, "metadata_retries": retries + 1,
-                "error": str(e), "df_metadata": pd.DataFrame()}
+        return handle_extraction_error("Metadata extraction", e, state.get("metadata_retries", 0)) | \
+               {"metadata_ok": False, "metadata_retries": state.get("metadata_retries", 0) + 1,
+                "df_metadata": pd.DataFrame()}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ def node_extract_metadata(state: AgentState) -> dict:
 # ──────────────────────────────────────────────────────────────
 def node_extract_schedules(state: AgentState) -> dict:
     print("\n📌 [Agent] Extracting Schedule 1 & Schedule 9...")
-    try:
+    try: # Use log.info instead of print
         df1, df9 = extract_sow_schedules(state["sow_path"])
         notes = state.get("extraction_notes", [])
         notes.append(f"Schedule 1: {len(df1)} rows | Schedule 9: {len(df9)} rows")
@@ -101,15 +101,9 @@ def node_extract_schedules(state: AgentState) -> dict:
             "schedule_retries": 0
         }
     except Exception as e:
-        retries = state.get("schedule_retries", 0)
-        print(f"⚠️  [Agent] Schedule extraction failed (attempt {retries+1}): {e}")
-        return {
-            "schedule_ok": False,
-            "schedule_retries": retries + 1,
-            "error": str(e),
-            "df_schedule1": pd.DataFrame(),
-            "df_schedule9": pd.DataFrame()
-        }
+        return handle_extraction_error("Schedule extraction", e, state.get("schedule_retries", 0)) | \
+               {"schedule_ok": False, "schedule_retries": state.get("schedule_retries", 0) + 1,
+                "df_schedule1": pd.DataFrame(), "df_schedule9": pd.DataFrame()}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -117,23 +111,23 @@ def node_extract_schedules(state: AgentState) -> dict:
 # ──────────────────────────────────────────────────────────────
 def node_decide_schedule9(state: AgentState) -> dict:
     print("\n🤔 [Agent] Deciding if Schedule 9 is usable...")
-    df9 = state.get("df_schedule9")
+    df9 = state.get("df_schedule9") # Use log.debug instead of print
     notes = state.get("extraction_notes", [])
 
     # ── DEBUG — print exactly what was extracted ──────────────
     if df9 is not None:
-        print(f"   [DEBUG] df9 shape: {df9.shape}")
-        print(f"   [DEBUG] df9 columns: {list(df9.columns)}")
-        print(f"   [DEBUG] df9 empty: {df9.empty}")
+        log.debug(f"df9 shape: {df9.shape}")
+        log.debug(f"df9 columns: {list(df9.columns)}")
+        log.debug(f"df9 empty: {df9.empty}")
         if not df9.empty:
-            print(f"   [DEBUG] df9 head:\n{df9.head().to_string()}")
+            log.debug(f"df9 head:\n{df9.head().to_string()}")
     else:
-        print("   [DEBUG] df9 is None")
+        log.debug("df9 is None")
     # ─────────────────────────────────────────────────────────
 
     if df9 is None or df9.empty:
         notes.append("⚠️ Schedule 9 not found — validation will be limited to Schedule 1 vs PO only.")
-        print("   → Schedule 9 missing, will proceed without it.")
+        log.info("→ Schedule 9 missing, will proceed without it.")
         return {"has_schedule9": False, "extraction_notes": notes}
 
     # Check if ANY data at all exists in the rows (milestone text is enough)
@@ -164,20 +158,18 @@ def node_decide_schedule9(state: AgentState) -> dict:
 # NODE 5 — Extract PO
 # ──────────────────────────────────────────────────────────────
 def node_extract_po(state: AgentState) -> dict:
-    print("\n🧾 [Agent] Extracting Purchase Order...")
+    log.info("\n🧾 [Agent] Extracting Purchase Order...")
     try:
         df9 = state.get("df_schedule9")
         df = extract_po(state["po_path"], df9=df9)
-        if df.empty:
-            raise ValueError("PO DataFrame is empty")
+        # An empty DataFrame is not necessarily an error, just means no PO data found.
         notes = state.get("extraction_notes", [])
         notes.append(f"PO extracted: {len(df)} line items")
         return {"df_po": df, "po_ok": True, "extraction_notes": notes, "po_retries": 0}
     except Exception as e:
-        retries = state.get("po_retries", 0)
-        print(f"⚠️  [Agent] PO extraction failed (attempt {retries+1}): {e}")
-        return {"po_ok": False, "po_retries": retries + 1,
-                "error": str(e), "df_po": pd.DataFrame()}
+        return handle_extraction_error("PO extraction", e, state.get("po_retries", 0)) | \
+               {"po_ok": False, "po_retries": state.get("po_retries", 0) + 1,
+                "df_po": pd.DataFrame()}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -185,7 +177,7 @@ def node_extract_po(state: AgentState) -> dict:
 # ──────────────────────────────────────────────────────────────
 def node_run_validation(state: AgentState) -> dict:
     print("\n🔍 [Agent] Running procurement flow validation...")
-    try:
+    try: # Use log.info instead of print
         df1   = state["df_schedule1"]
         df9   = state["df_schedule9"]
         df_po = state["df_po"]
@@ -208,7 +200,7 @@ def node_run_validation(state: AgentState) -> dict:
             "extraction_notes": notes
         }
     except Exception as e:
-        print(f"❌ [Agent] Validation failed: {e}")
+        log.error(f"❌ [Agent] Validation failed: {e}", exc_info=True) # Log traceback
         return {"validation_ok": False, "error": str(e),
                 "df_validation": pd.DataFrame(), "validation_issues": [str(e)]}
 
@@ -217,7 +209,7 @@ def node_run_validation(state: AgentState) -> dict:
 # NODE 7 — Generate audit report
 # ──────────────────────────────────────────────────────────────
 def node_generate_audit_report(state: AgentState) -> dict:
-    print("\n📝 [Agent] Generating audit report via GPU...")
+    log.info("\n📝 [Agent] Generating audit report via GPU...")
 
     notes   = state.get("extraction_notes", [])
     issues  = state.get("validation_issues", [])
@@ -241,7 +233,7 @@ def node_generate_audit_report(state: AgentState) -> dict:
 
     try:
         report = call_gpu(prompt, max_new_tokens=600)
-        print("✅ [Agent] Audit report generated.")
+        log.info("✅ [Agent] Audit report generated.")
     except Exception as e:
         report = f"Audit report generation failed: {e}\n\nRaw issues:\n{issues_text}"
 
