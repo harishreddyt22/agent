@@ -17,12 +17,17 @@ if _ROOT not in sys.path:
 from utils.logger import get_logger
 log = get_logger("utils.db")
 
-# ── DB path from config (fallback to data/procurement.db) ─────
+# ── DB path from env/config (fallback to data/procurement.db) ─────
+_db_path_setting = None
 try:
     from config import SETTINGS
-    _DB_PATH = os.path.join(_ROOT, SETTINGS["database"]["path"])
+    _db_path_setting = SETTINGS["database"]["path"]
 except Exception:
-    _DB_PATH = os.path.join(_ROOT, "data", "procurement.db")
+    _db_path_setting = os.path.join("data", "procurement.db")
+
+_DB_PATH = os.getenv("DATABASE_PATH") or _db_path_setting or os.path.join("data", "procurement.db")
+if not os.path.isabs(_DB_PATH):
+    _DB_PATH = os.path.join(_ROOT, _DB_PATH)
 
 os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
 
