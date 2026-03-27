@@ -24,15 +24,19 @@ templates = Jinja2Templates(
 def _render(request, session, error=None, success_msg=None):
     state  = session.get("state")
     tables = render_service.build_tables(state) if state else {}
-    return templates.TemplateResponse("index.html", {
-        "request":     request,
-        "state":       state,
-        "tables":      tables,
-        "error":       error,
-        "success_msg": success_msg,
-        "sow_name":    session.get("sow_name"),
-        "po_name":     session.get("po_name"),
-    })
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "request":     request,
+            "state":       state,
+            "tables":      tables,
+            "error":       error,
+            "success_msg": success_msg,
+            "sow_name":    session.get("sow_name"),
+            "po_name":     session.get("po_name"),
+        },
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -114,12 +118,16 @@ async def run(
     log.info(f"[Session {sid[:8]}] Job {job_id[:8]} queued "
              f"(running={job_registry.running_count()})")
 
-    resp = templates.TemplateResponse("waiting.html", {
-        "request":  request,
-        "job_id":   job_id,
-        "sow_name": sow_file.filename,
-        "po_name":  po_file.filename,
-    })
+    resp = templates.TemplateResponse(
+        request,
+        "waiting.html",
+        {
+            "request":  request,
+            "job_id":   job_id,
+            "sow_name": sow_file.filename,
+            "po_name":  po_file.filename,
+        },
+    )
     session_service.set_cookie(resp, sid)
     return resp
 
@@ -141,9 +149,15 @@ async def history(request: Request):
     except Exception as e: log.warning(f"list_runs: {e}")
     try: uploads = list_uploads()
     except Exception as e: log.warning(f"list_uploads: {e}")
-    resp = templates.TemplateResponse("history.html", {
-        "request": request, "runs": runs, "uploads": uploads,
-    })
+    resp = templates.TemplateResponse(
+        request,
+        "history.html",
+        {
+            "request": request,
+            "runs": runs,
+            "uploads": uploads,
+        },
+    )
     session_service.set_cookie(resp, sid)
     return resp
 
