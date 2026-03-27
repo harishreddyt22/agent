@@ -4,7 +4,7 @@ HTML page routes — index, results, history, gpu-check.
 """
 import asyncio
 from fastapi import APIRouter, Request, UploadFile, File
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 import os
 
@@ -45,6 +45,11 @@ async def index(request: Request):
     resp = _render(request, session)
     session_service.set_cookie(resp, sid)
     return resp
+
+
+@router.head("/", response_class=Response)
+async def index_head():
+    return Response(status_code=200)
 
 
 @router.post("/run", response_class=HTMLResponse)
