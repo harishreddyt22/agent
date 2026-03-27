@@ -34,8 +34,12 @@ def call_gpu(prompt: str, max_new_tokens: int = 2048, max_retries: int = 3) -> s
                 timeout=600,
                 verify=True
             )
-            # Raise for HTTP status codes (4xx or 5xx)
-            resp.raise_for_status() 
+            # Raise for HTTP status codes (4xx or 5xx) and log response text
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                log.error(f"HTTP error from GPU server: {e}. Response text: {resp.text}")
+                raise
             result = resp.json()
             if "error" in result:
                 # If the GPU server returns a 200 OK but with an 'error' key in JSON
