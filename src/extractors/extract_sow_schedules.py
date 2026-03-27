@@ -12,6 +12,7 @@ from utils.torch_fix import *  # fix broken torch DLL on Windows
 import concurrent.futures
 import json, re
 import pandas as pd
+from utils.logger import get_logger
 from utils.gpu_client import call_gpu
 
 
@@ -400,7 +401,8 @@ def extract_schedule_from_markdown_schedule9(md: str) -> list:
 def extract_schedule1(file_path: str):
     full_content = get_doc_markdown_schedule1(file_path)
     prompt = build_prompt_schedule1(full_content)
-    print("GPU: extracting Schedule 1...")
+    log = get_logger("extractors.schedules") # Ensure logger is available
+    log.info("GPU: extracting Schedule 1...")
     response = call_gpu(prompt, max_new_tokens=1024)
 
     raw1 = []
@@ -422,12 +424,12 @@ def extract_schedule1(file_path: str):
 
         # ── DEBUG ──────────────────────────────────────────────────
         print(f"   [DEBUG] schedule_1 raw rows count: {len(raw1)}")
-        if not raw1:
-            print("   [DEBUG] schedule_1 is EMPTY in JSON response")
-            print(f"   [DEBUG] JSON keys found: {list(data.keys())}")
+        if not raw1: # Use log.debug instead of print
+            log.debug("schedule_1 is EMPTY in JSON response")
+            log.debug(f"JSON keys found: {list(data.keys())}")
         # ───────────────────────────────────────────────────────────
     except Exception as e:
-        print(f"   [DEBUG] JSON parsing failed: {e}, falling back to markdown")
+        log.debug(f"JSON parsing failed: {e}, falling back to markdown")
 
     if not raw1:
         raw1 = extract_schedule_from_markdown_schedule1(full_content)
@@ -449,14 +451,15 @@ def extract_schedule1(file_path: str):
 
     df1 = validate_schedule1(df1)
 
-    print("Schedule 1 extracted")
+    log.info("Schedule 1 extracted")
     return df1
 
 
 def extract_schedule9(file_path: str):
     full_content = get_doc_markdown_schedule9(file_path)
     prompt = build_prompt_schedule9(full_content)
-    print("GPU: extracting Schedule 9...")
+    log = get_logger("extractors.schedules") # Ensure logger is available
+    log.info("GPU: extracting Schedule 9...")
     response = call_gpu(prompt, max_new_tokens=1024)
 
     raw9 = []
@@ -478,12 +481,12 @@ def extract_schedule9(file_path: str):
 
         # ── DEBUG ──────────────────────────────────────────────────
         print(f"   [DEBUG] schedule_9 raw rows count: {len(raw9)}")
-        if not raw9:
-            print("   [DEBUG] schedule_9 is EMPTY in JSON response")
-            print(f"   [DEBUG] JSON keys found: {list(data.keys())}")
+        if not raw9: # Use log.debug instead of print
+            log.debug("schedule_9 is EMPTY in JSON response")
+            log.debug(f"JSON keys found: {list(data.keys())}")
         # ───────────────────────────────────────────────────────────
     except Exception as e:
-        print(f"   [DEBUG] JSON parsing failed: {e}, falling back to markdown")
+        log.debug(f"JSON parsing failed: {e}, falling back to markdown")
 
     if not raw9:
         raw9 = extract_schedule_from_markdown_schedule9(full_content)
@@ -503,13 +506,13 @@ def extract_schedule9(file_path: str):
 
     if not df9.empty:
         df9["sow_date"] = df9["sow_date"].apply(validate_date)
-        print(f"   [DEBUG] Schedule 9 dates after validation: {df9['sow_date'].tolist()}")
+        log.debug(f"Schedule 9 dates after validation: {df9['sow_date'].tolist()}")
 
-    print("Schedule 9 extracted")
+    log.info("Schedule 9 extracted")
     return df9
 
 
-def extract_sow_schedules(file_path: str):
+def extract_sow_schedules(file_path: str): # No change needed here, just ensuring logger is imported
     # Run extractions in parallel for speed
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         future1 = executor.submit(extract_schedule1, file_path)
@@ -521,7 +524,8 @@ def extract_sow_schedules(file_path: str):
     # Now validate schedule 9 with df1
     df9 = validate_schedule9(df9, df1)
 
-    print("SOW schedules extracted")
+    log = get_logger("extractors.schedules") # Ensure logger is available
+    log.info("SOW schedules extracted")
     return df1, df9
 
 
