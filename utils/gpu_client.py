@@ -34,10 +34,14 @@ def call_gpu(prompt: str, max_new_tokens: int = 2048, max_retries: int = 3) -> s
                 timeout=600,
                 verify=True
             )
-            resp.raise_for_status()
+            # Raise for HTTP status codes (4xx or 5xx)
+            resp.raise_for_status() 
             result = resp.json()
             if "error" in result:
-                raise RuntimeError(f"GPU server error: {result['error']}")
+                # If the GPU server returns a 200 OK but with an 'error' key in JSON
+                log.error(f"GPU server returned application error: {result['error']}")
+                log.debug(f"Full GPU server response: {resp.text}")
+                raise RuntimeError(f"GPU server application error: {result['error']}")
             return result["response"]
         except requests.exceptions.SSLError as e:
             log.warning(f"SSL error on attempt {attempt + 1}/{max_retries}: {str(e)}")
@@ -48,6 +52,7 @@ def call_gpu(prompt: str, max_new_tokens: int = 2048, max_retries: int = 3) -> s
             else:
                 raise
         except requests.exceptions.RequestException as e:
+            log.debug(f"Full GPU server response (if available): {getattr(e.response, 'text', 'N/A')}")
             log.error(f"Request failed on attempt {attempt + 1}/{max_retries}: {str(e)}")
             if attempt < max_retries - 1:
                 wait_time = 2 ** attempt
