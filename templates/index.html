@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SOW & PO Procurement Agent</title>
+<style>
+  :root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --success: #188038;
+    --success-bg: #e6f4ea;
+    --danger: #c5221f;
+    --danger-bg: #fce8e6;
+    --warning: #92400e;
+    --warning-bg: #fef9c3;
+    --text: #202124;
+    --muted: #5f6368;
+    --border: #dadce0;
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --row-alt: #f1f3f4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #1a73e8, #0d47a1);
+    color: white; padding: 18px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 2px; }
+  .company-name { font-size: 18px; font-weight: 900; opacity: 1; letter-spacing: 1.5px; text-transform: uppercase; color: #ffffff; }
+  .header h1 { font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.92); }
+  .live-clock {
+    font-size: 20px; font-weight: 700; font-family: "Consolas", monospace;
+    background: rgba(255,255,255,0.12); border-radius: 8px;
+    padding: 8px 18px; letter-spacing: 2px;
+    text-align: center; line-height: 1.5;
+  }
+
+  /* ── Layout ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 28px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px; margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+  }
+
+  /* ── Upload row ── */
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .upload-actions { display: flex; gap: 12px; margin-top: 14px; align-items: center; }
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 8px;
+    padding: 20px; text-align: center; cursor: pointer;
+    transition: all .2s;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--primary); background: #e8f0fe;
+  }
+  .upload-zone.has-file {
+    border-color: var(--success); background: var(--success-bg);
+    border-style: solid;
+  }
+  .upload-zone input[type=file] { display: none; }
+  .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .upload-hint  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .upload-name  { font-size: 12px; color: var(--success); font-weight: 600; margin-top: 6px; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px; border-radius: 6px; font-size: 13px;
+    font-weight: 600; cursor: pointer; border: none;
+    transition: all .15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--primary); color: white; width: 100%; justify-content: center; font-size: 14px; padding: 12px; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+  .btn-primary:disabled { background: #9aa0a6; cursor: not-allowed; }
+  .btn-outline { background: white; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--row-alt); }
+  .btn-success { background: var(--success-bg); color: var(--success); border: 1px solid #b7dfb9; }
+  .btn-danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid #f5c6c6; }
+
+  .actions { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+
+  /* ── Progress ── */
+  .progress-bar { width: 100%; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; display: none; margin-bottom: 16px; }
+  .progress-bar.active { display: block; }
+  .progress-bar-fill { height: 100%; width: 40%; background: var(--primary); border-radius: 3px; animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0%{transform:translateX(-100%)} 100%{transform:translateX(350%)} }
+
+  /* ── Tabs ── */
+  .tabs { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .tab-nav { display: flex; background: var(--row-alt); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab-btn {
+    padding: 12px 20px; font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer; white-space: nowrap;
+    border: none; background: none; border-bottom: 3px solid transparent;
+    transition: all .15s;
+  }
+  .tab-btn:hover   { color: var(--primary); background: #e8f0fe; }
+  .tab-btn.active  { color: var(--primary); font-weight: 700; border-bottom-color: var(--primary); background: white; }
+  .tab-pane        { display: none; padding: 24px; }
+  .tab-pane.active { display: block; }
+  .section-title {
+    font-size: 15px; font-weight: 700; color: var(--text);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+  }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--primary); color: white; padding: 10px 12px;
+    text-align: left; font-weight: 600; white-space: nowrap;
+    border-right: 1px solid #4a8cf7;
+  }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  tbody tr:hover           { background: #e8f0fe; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td.idx { font-weight: 600; color: var(--primary); }
+  td.pass  { background: var(--success-bg); color: var(--success); font-weight: 700; }
+  td.fail  { background: var(--danger-bg);  color: var(--danger);  font-weight: 700; }
+  td.warn  { background: var(--warning-bg); color: var(--warning); font-weight: 700; }
+  .empty-state { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
+
+  /* ── Banner ── */
+  .banner {
+    padding: 12px 18px; border-radius: 7px; font-size: 14px;
+    font-weight: 700; margin-bottom: 16px;
+  }
+  .banner.success { background: var(--success-bg); color: var(--success); }
+  .banner.danger  { background: var(--danger-bg);  color: var(--danger);  }
+
+  /* ── Audit ── */
+  .audit-box {
+    background: #fafafa; border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px;
+    font-size: 13px; line-height: 1.8; white-space: pre-wrap;
+    max-height: 500px; overflow-y: auto; margin-bottom: 16px;
+  }
+  .dl-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+
+
+  /* ── Alert ── */
+  .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+  .alert-info    { background: #e8f0fe; color: var(--primary); }
+  .alert-success { background: var(--success-bg); color: var(--success); }
+  .alert-danger  { background: var(--danger-bg);  color: var(--danger);  }
+
+  /* ── Modal overlay ── */
+  #spinner {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  #spinner.show { display: flex; }
+
+  .modal-box {
+    background: white;
+    border-radius: 16px;
+    padding: 40px 48px;
+    min-width: 420px;
+    max-width: 520px;
+    text-align: center;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+    animation: popIn .25s ease;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.88); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
+  .modal-icon { font-size: 44px; margin-bottom: 12px; }
+  .modal-title {
+    font-size: 18px; font-weight: 700;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .modal-subtitle {
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 28px; line-height: 1.6;
+  }
+
+  /* animated progress track */
+  .modal-progress-track {
+    width: 100%; height: 8px;
+    background: var(--row-alt);
+    border-radius: 99px; overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .modal-progress-fill {
+    height: 100%; width: 35%;
+    background: linear-gradient(90deg, var(--primary), #60a5fa);
+    border-radius: 99px;
+    animation: sweep 1.6s ease-in-out infinite;
+  }
+  @keyframes sweep {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(380%); }
+  }
+
+  /* step list */
+  .modal-steps {
+    list-style: none; text-align: left;
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 4px;
+  }
+  .modal-steps li {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--muted);
+  }
+  .step-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border); flex-shrink: 0;
+    transition: background .4s;
+  }
+  .step-dot.active { background: var(--primary); animation: pulse 1s ease infinite; }
+  .step-dot.done   { background: var(--success); animation: none; }
+  .step-dot.error  { background: var(--danger);  animation: none; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(26,115,232,.5); }
+    50%      { box-shadow: 0 0 0 6px rgba(26,115,232,0); }
+  }
+  .step-label.active { color: var(--primary); font-weight: 600; }
+  .step-label.done   { color: var(--success);  font-weight: 600; }
+  .step-label.error  { color: var(--danger);   font-weight: 600; }
+
+  .modal-note {
+    margin-top: 22px; font-size: 11px; color: #9aa0a6;
+    border-top: 1px solid var(--border); padding-top: 14px;
+  }
+
+  @media(max-width:700px){ .upload-grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ── Modal overlay ── -->
+<div id="spinner">
+  <div class="modal-box">
+    <div class="modal-icon">🤖</div>
+    <div class="modal-title">Agent is Running</div>
+    <div class="modal-subtitle">Processing your documents on Colab GPU.<br>This may take 3–5 minutes.</div>
+
+    <div class="modal-progress-track">
+      <div class="modal-progress-fill"></div>
+    </div>
+
+    <ul class="modal-steps">
+      <li><span class="step-dot" id="dot1"></span><span class="step-label" id="lbl1">GPU health check</span></li>
+      <li><span class="step-dot" id="dot2"></span><span class="step-label" id="lbl2">Extracting company metadata</span></li>
+      <li><span class="step-dot" id="dot3"></span><span class="step-label" id="lbl3">Extracting Schedule 1 &amp; Schedule 9</span></li>
+      <li><span class="step-dot" id="dot4"></span><span class="step-label" id="lbl4">Extracting Purchase Order</span></li>
+      <li><span class="step-dot" id="dot5"></span><span class="step-label" id="lbl5">Running procurement validation</span></li>
+      <li><span class="step-dot" id="dot6"></span><span class="step-label" id="lbl6">Generating audit report</span></li>
+    </ul>
+
+    <div class="modal-note">📟 Check your terminal for detailed live logs</div>
+  </div>
+</div>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="header-left">
+    <div class="company-name">Andor Tech</div>
+    <h1>🤖 SOW &amp; PO Procurement Agent</h1>
+  </div>
+  <div class="live-clock" id="liveClock"></div>
+</div>
+
+<div class="container">
+
+  {% if error %}
+  <div class="alert alert-danger">❌ {{ error }}</div>
+  {% endif %}
+
+  {% if success_msg %}
+  <div class="alert alert-success">{{ success_msg }}</div>
+  {% endif %}
+
+  <!-- ── Upload card ── -->
+  <div class="card">
+    <div class="card-title">📂 Upload Documents</div>
+    <form id="uploadForm" enctype="multipart/form-data" onsubmit="return false;">
+      <div class="upload-grid">
+
+        <!-- SOW -->
+        <div class="upload-zone {% if sow_name %}has-file{% endif %}" id="sowZone"
+             onclick="document.getElementById('sowFile').click()"
+             ondragover="onDragOver(event,'sowZone')"
+             ondragleave="onDragLeave('sowZone')"
+             ondrop="onDrop(event,'sowZone','sowFile','sowName')">
+          <input type="file" id="sowFile" name="sow_file" accept=".docx" onchange="showFile(this,'sowName','sowZone')">
+          <div class="upload-icon">📄</div>
+          <div class="upload-label">Statement of Work (SOW)</div>
+          <div class="upload-hint">Click or drag .docx here</div>
+          <div class="upload-name" id="sowName">{% if sow_name %}✅ {{ sow_name }}{% endif %}</div>
+        </div>
+
+        <!-- PO -->
+        <div class="upload-zone {% if po_name %}has-file{% endif %}" id="poZone"
+             onclick="document.getElementById('poFile').click()"
+             ondragover="onDragOver(event,'poZone')"
+             ondragleave="onDragLeave('poZone')"
+             ondrop="onDrop(event,'poZone','poFile','poName')">
+          <input type="file" id="poFile" name="po_file" accept=".docx" onchange="showFile(this,'poName','poZone')">
+          <div class="upload-icon">🧾</div>
+          <div class="upload-label">Purchase Order (PO)</div>
+          <div class="upload-hint">Click or drag .docx here</div>
+          <div class="upload-name" id="poName">{% if po_name %}✅ {{ po_name }}{% endif %}</div>
+        </div>
+
+      </div>
+
+      <!-- Actions row below uploads -->
+      <div class="upload-actions">
+        <a href="/gpu-check" class="btn btn-outline">🔌 Check GPU Server</a>
+        <a href="/history"   class="btn btn-outline">🗂️ View History</a>
+        <button type="button" class="btn btn-primary" id="runBtn"
+                onclick="startAgent(event)">
+          🚀 Run Agent
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {% if state %}
+  <!-- ── Results tabs ── -->
+  <div class="tabs">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('meta',this)"> Metadata</button>
+      <button class="tab-btn" onclick="switchTab('sched1',this)"> Schedule 1</button>
+      <button class="tab-btn" onclick="switchTab('sched9',this)"> Schedule 9</button>
+      <button class="tab-btn" onclick="switchTab('po',this)"> Purchase Order</button>
+      <button class="tab-btn" onclick="switchTab('val',this)"> Validation</button>
+      <button class="tab-btn" onclick="switchTab('audit',this)"> Audit Report</button>
+    </div>
+
+    <!-- Metadata -->
+    <div class="tab-pane active" id="tab-meta">
+      <div class="section-title"> Company Metadata</div>
+      {{ tables.meta | safe }}
+    </div>
+
+    <!-- Schedule 1 -->
+    <div class="tab-pane" id="tab-sched1">
+      <div class="section-title"> Data Compliance Check — Deliverables &amp; Milestones</div>
+      {{ tables.sched1 | safe }}
+    </div>
+
+    <!-- Schedule 9 -->
+    <div class="tab-pane" id="tab-sched9">
+      <div class="section-title"> Data Compliance Check — Fees &amp; Expenses</div>
+      {% if tables.sched9 and 'No data' not in tables.sched9 and 'empty-state' not in tables.sched9 %}
+        {{ tables.sched9 | safe }}
+      {% elif state.has_schedule9 %}
+        {{ tables.sched9 | safe }}
+      {% else %}
+        <div class="empty-state">⚠️ Schedule 9 not found in this document — agent skipped it.</div>
+      {% endif %}
+    </div>
+
+    <!-- PO -->
+    <div class="tab-pane" id="tab-po">
+      <div class="section-title"> Data Compliance Check — Purchase Order</div>
+      {{ tables.po | safe }}
+    </div>
+
+    <!-- Validation -->
+    <div class="tab-pane" id="tab-val">
+      <div class="section-title"> Validation Table</div>
+      {% if state.validation_ok %}
+        <div class="banner success"> All milestones passed validation!</div>
+      {% else %}
+        <div class="banner danger"> {{ state.validation_issues | length }} milestone(s) failed validation.</div>
+      {% endif %}
+      {{ tables.val | safe }}
+      <br>
+      <a href="/download/csv" class="btn btn-outline">⬇️ Download Validation Report (CSV)</a>
+    </div>
+
+    <!-- Audit -->
+    <div class="tab-pane" id="tab-audit">
+      <div class="section-title"> Agent Audit Report</div>
+      <div class="audit-box">{{ state.audit_report }}</div>
+      <div class="dl-row">
+        <a href="/download/pdf"  class="btn btn-outline">⬇️ Download as PDF</a>
+        <a href="/download/word" class="btn btn-outline">⬇️ Download as Word</a>
+      </div>
+    </div>
+
+
+  </div>
+  {% else %}
+  <div class="alert alert-info">⬆️ Upload both documents and click <strong>Run Agent</strong> to begin. Results will appear here after the agent completes.</div>
+  {% endif %}
+
+</div>
+
+<script>
+  // ── Tab switching ──
+  function switchTab(id, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ── File upload UI ──
+  function showFile(input, labelId, zoneId) {
+    const name = input.files[0]?.name;
+    if (name) {
+      document.getElementById(labelId).textContent = '✅ ' + name;
+      document.getElementById(zoneId).classList.add('has-file');
+    }
+  }
+  function onDragOver(e, zoneId) {
+    e.preventDefault();
+    document.getElementById(zoneId).classList.add('drag-over');
+  }
+  function onDragLeave(zoneId) {
+    document.getElementById(zoneId).classList.remove('drag-over');
+  }
+  function onDrop(e, zoneId, inputId, labelId) {
+    e.preventDefault();
+    document.getElementById(zoneId).classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const input = document.getElementById(inputId);
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      showFile(input, labelId, zoneId);
+    }
+  }
+
+  // Step definitions with realistic timing based on actual agent node durations
+  const STEPS = [
+    { dot: 'dot1', lbl: 'lbl1', start:   0,   done:  5000  },  // GPU check      ~5s
+    { dot: 'dot2', lbl: 'lbl2', start:   5000, done:  50000 },  // Metadata       ~45s
+    { dot: 'dot3', lbl: 'lbl3', start:  50000, done: 130000 },  // Schedules      ~80s
+    { dot: 'dot4', lbl: 'lbl4', start: 130000, done: 200000 },  // PO             ~70s
+    { dot: 'dot5', lbl: 'lbl5', start: 200000, done: 220000 },  // Validation     ~20s
+    { dot: 'dot6', lbl: 'lbl6', start: 220000, done: 999999999 },  // Audit report — stays active until page reloads
+  ];
+
+  // ── Agent job orchestration ──────────────────────────────────
+  let _activeTimers = [];   // track step timers so we can cancel on error
+
+  function startAgent(event) {
+    if (event) event.preventDefault();   // block any native form submit
+    const sowFile = document.getElementById('sowFile').files[0];
+    const poFile  = document.getElementById('poFile').files[0];
+    if (!sowFile || !poFile) {
+      alert('Please select both SOW and PO files first.');
+      return;
+    }
+
+    // 1. Show modal immediately — index page stays visible underneath
+    _showModal();
+
+    // 2. Submit files via fetch — browser never navigates away
+    const formData = new FormData();
+    formData.append('sow_file', sowFile);
+    formData.append('po_file',  poFile);
+
+    fetch('/run', { method: 'POST', body: formData })
+      .then(r => {
+        if (!r.ok) throw new Error('Server returned ' + r.status);
+        return r.text();
+      })
+      .then(html => {
+        // Extract job_id that the server embedded in waiting.html
+        const match = html.match(/JOB_ID\s*=\s*"([^"]+)"/);
+        if (!match) {
+          // Cache hit — server returned results page directly
+          _loadResults();
+          return;
+        }
+        // Start polling — modal stays visible the whole time
+        _pollJob(match[1], 0);
+      })
+      .catch(err => {
+        console.error('Run error:', err);
+        _hideModal();
+        alert('Could not start agent: ' + err.message);
+      });
+  }
+
+  function _showModal() {
+    // Cancel any previous step timers
+    _activeTimers.forEach(t => clearTimeout(t));
+    _activeTimers = [];
+
+    document.getElementById('spinner').classList.add('show');
+
+    // Reset all dots
+    STEPS.forEach(s => {
+      document.getElementById(s.dot).className = 'step-dot';
+      document.getElementById(s.lbl).className = 'step-label';
+    });
+
+    // Schedule timed step animations — purely cosmetic
+    STEPS.forEach(s => {
+      const t1 = setTimeout(() => {
+        document.getElementById(s.dot).className = 'step-dot active';
+        document.getElementById(s.lbl).className = 'step-label active';
+      }, s.start);
+      _activeTimers.push(t1);
+
+      if (s.done < 999999999) {
+        const t2 = setTimeout(() => {
+          document.getElementById(s.dot).className = 'step-dot done';
+          document.getElementById(s.lbl).className = 'step-label done';
+        }, s.done);
+        _activeTimers.push(t2);
+      }
+    });
+  }
+
+  function _pollJob(jobId, attempt) {
+    // Modal must stay visible — never call _hideModal here except on failure
+    fetch('/api/job/' + jobId)
+      .then(r => {
+        if (r.status === 404 && attempt < 5) {
+          // Job not registered yet — retry after short delay
+          setTimeout(() => _pollJob(jobId, attempt + 1), 1500);
+          return null;
+        }
+        return r.json();
+      })
+      .then(data => {
+        if (!data) return;  // waiting for retry
+
+        if (data.status === 'done') {
+          // Cancel timers, mark all steps done
+          _activeTimers.forEach(t => clearTimeout(t));
+          STEPS.forEach(s => {
+            document.getElementById(s.dot).className = 'step-dot done';
+            document.getElementById(s.lbl).className = 'step-label done';
+          });
+          // Short pause so user sees all-green, then load results
+          setTimeout(_loadResults, 800);
+
+        } else if (data.status === 'failed') {
+          _activeTimers.forEach(t => clearTimeout(t));
+          _hideModal();
+          alert('Agent failed:\n' + (data.error || 'Unknown error'));
+
+        } else {
+          // pending or running — keep polling every 2s
+          setTimeout(() => _pollJob(jobId, attempt + 1), 2000);
+        }
+      })
+      .catch(() => {
+        // Network hiccup — retry silently, modal stays open
+        setTimeout(() => _pollJob(jobId, attempt + 1), 3000);
+      });
+  }
+
+  function _loadResults() {
+    // Pull /results HTML and inject tabs into current page — no full reload
+    fetch('/results')
+      .then(r => r.text())
+      .then(html => {
+        const parser  = new DOMParser();
+        const doc     = parser.parseFromString(html, 'text/html');
+
+        // Replace or insert result tabs
+        const newTabs = doc.querySelector('.tabs');
+        const oldTabs = document.querySelector('.tabs');
+        if (newTabs) {
+          if (oldTabs) oldTabs.replaceWith(newTabs.cloneNode(true));
+          else document.querySelector('.container').appendChild(newTabs.cloneNode(true));
+        }
+
+        // Replace/insert success banner
+        const existingAlert = document.querySelector('.alert-success');
+        if (existingAlert) existingAlert.remove();
+        const newAlert = doc.querySelector('.alert-success');
+        if (newAlert) {
+          document.querySelector('.card').insertAdjacentElement(
+            'afterend', newAlert.cloneNode(true)
+          );
+        }
+
+        // Remove "no results yet" info alert if present
+        const infoAlert = document.querySelector('.alert-info');
+        if (infoAlert) infoAlert.remove();
+
+        // Update uploaded file name labels
+        const sowLbl = doc.querySelector('#sowName');
+        const poLbl  = doc.querySelector('#poName');
+        if (sowLbl) document.getElementById('sowName').innerHTML = sowLbl.innerHTML;
+        if (poLbl)  document.getElementById('poName').innerHTML  = poLbl.innerHTML;
+
+        // Hide modal AFTER results are injected — smooth transition
+        _hideModal();
+
+        // Switch to Metadata tab
+        const firstBtn = document.querySelector('.tab-btn');
+        if (firstBtn) switchTab('meta', firstBtn);
+      })
+      .catch(() => {
+        // Fallback — just reload the page
+        _hideModal();
+        window.location.href = '/results';
+      });
+  }
+
+  function _hideModal() {
+    document.getElementById('spinner').classList.remove('show');
+  }
+
+  // ── Live clock ──
+  function updateClock() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const date = pad(now.getDate()) + '-' + pad(now.getMonth()+1) + '-' + now.getFullYear();
+    const time = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    const el = document.getElementById('liveClock');
+    if (el) el.innerHTML = date + '<br>' + time;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
+</body>
+</html>

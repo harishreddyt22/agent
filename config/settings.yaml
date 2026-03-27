@@ -1,0 +1,43 @@
+# config/settings.yaml
+# All configuration for the SOW & PO Procurement Agent
+
+app:
+  name: "SOW & PO Procurement Agent"
+  company: "Andor Tech"
+  host: "0.0.0.0"
+  port: 8000
+  max_workers: 20       # concurrent users
+  session_ttl: 7200     # session expiry in seconds
+  max_sessions: 200     # hard cap
+
+gpu:
+  # Set in .env as COLAB_GPU_URL
+  timeout_seconds: 600
+  max_new_tokens_schedules: 2048
+  max_new_tokens_po: 1024
+  max_new_tokens_metadata: 1024
+  max_new_tokens_audit: 1024
+
+agent:
+  max_retries: 2
+
+database:
+  # SQLite — file stored in data/
+  type: "sqlite"
+  path: "data/procurement.db"
+
+logging:
+  level: "INFO"
+  file: "data/logs/agent.log"
+  format: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+
+currency:
+  target: "INR"
+  fallback_rates:
+    EUR: 90.5
+    USD: 83.5
+    GBP: 106.0
+    CHF: 94.0
+    SEK: 8.0
+    NOK: 7.8
+    DKK: 12.1

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Agent Running — Andor Tech</title>
+<style>
+  :root{
+    --primary:#1a73e8;--success:#188038;--danger:#c5221f;
+    --text:#202124;--muted:#5f6368;--border:#dadce0;--bg:#f8f9fa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:"Segoe UI",Arial,sans-serif;
+    background:var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    min-height:100vh;
+  }
+  .card{
+    background:white;border:1px solid var(--border);
+    border-radius:16px;padding:48px;
+    min-width:440px;max-width:520px;
+    text-align:center;
+    box-shadow:0 8px 32px rgba(0,0,0,0.10);
+  }
+  .icon{font-size:52px;margin-bottom:14px;}
+  .title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px;}
+  .subtitle{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+
+  .progress-track{
+    width:100%;height:8px;
+    background:var(--border);border-radius:99px;overflow:hidden;
+    margin-bottom:24px;
+  }
+  .progress-fill{
+    height:100%;width:35%;
+    background:linear-gradient(90deg,var(--primary),#60a5fa);
+    border-radius:99px;
+    animation:sweep 1.6s ease-in-out infinite;
+  }
+  @keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(380%)}}
+
+  .steps{list-style:none;text-align:left;display:flex;flex-direction:column;gap:10px;}
+  .steps li{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .4s;}
+  .dot.active{background:var(--primary);animation:pulse 1s ease infinite;}
+  .dot.done  {background:var(--success);animation:none;}
+  .dot.error {background:var(--danger); animation:none;}
+  .lbl.active{color:var(--primary);font-weight:600;}
+  .lbl.done  {color:var(--success);font-weight:600;}
+  .lbl.error {color:var(--danger); font-weight:600;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(26,115,232,.5)}50%{box-shadow:0 0 0 6px rgba(26,115,232,0)}}
+
+  .note{
+    margin-top:24px;font-size:11px;color:#9aa0a6;
+    border-top:1px solid var(--border);padding-top:14px;
+  }
+
+  .error-box{
+    background:#fce8e6;border:1px solid #f5c6c6;
+    border-radius:8px;padding:16px;margin-top:16px;
+    color:var(--danger);font-size:13px;text-align:left;
+    display:none;
+  }
+  .back-btn{
+    display:inline-block;margin-top:18px;
+    padding:10px 24px;background:var(--primary);color:white;
+    border-radius:6px;text-decoration:none;font-weight:600;
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🤖</div>
+  <div class="title">Agent is Running</div>
+  <div class="subtitle">
+    Processing <strong>{{ sow_name }}</strong> &amp; <strong>{{ po_name }}</strong><br>
+    on Colab GPU. This may take 3–5 minutes.
+  </div>
+
+  <div class="progress-track">
+    <div class="progress-fill"></div>
+  </div>
+
+  <ul class="steps">
+    <li><span class="dot" id="dot1"></span><span class="lbl" id="lbl1">GPU health check</span></li>
+    <li><span class="dot" id="dot2"></span><span class="lbl" id="lbl2">Extracting company metadata</span></li>
+    <li><span class="dot" id="dot3"></span><span class="lbl" id="lbl3">Extracting Schedule 1 &amp; Schedule 9</span></li>
+    <li><span class="dot" id="dot4"></span><span class="lbl" id="lbl4">Extracting Purchase Order</span></li>
+    <li><span class="dot" id="dot5"></span><span class="lbl" id="lbl5">Running procurement validation</span></li>
+    <li><span class="dot" id="dot6"></span><span class="lbl" id="lbl6">Generating audit report</span></li>
+  </ul>
+
+  <div class="error-box" id="errorBox"></div>
+  <div class="note">📟 Check your terminal for detailed live logs</div>
+</div>
+
+<script>
+  const JOB_ID   = "{{ job_id }}";
+  const POLL_MS  = 2000;
+
+  // Timed step animation (visual only — matches rough real timing)
+  const STEPS = [
+    { dot:'dot1', lbl:'lbl1', start:0,      done:5000   },
+    { dot:'dot2', lbl:'lbl2', start:5000,   done:50000  },
+    { dot:'dot3', lbl:'lbl3', start:50000,  done:130000 },
+    { dot:'dot4', lbl:'lbl4', start:130000, done:200000 },
+    { dot:'dot5', lbl:'lbl5', start:200000, done:220000 },
+    { dot:'dot6', lbl:'lbl6', start:220000, done:999999 }, // stays active until done
+  ];
+
+  STEPS.forEach((s, i) => {
+    setTimeout(() => {
+      document.getElementById(s.dot).className = 'dot active';
+      document.getElementById(s.lbl).className = 'lbl active';
+    }, s.start);
+    if (s.done < 999999) {
+      setTimeout(() => {
+        document.getElementById(s.dot).className = 'dot done';
+        document.getElementById(s.lbl).className = 'lbl done';
+      }, s.done);
+    }
+  });
+
+  // Poll /api/job/{job_id} until done
+  function poll() {
+    fetch(`/api/job/${JOB_ID}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'done') {
+          // Mark all done
+          STEPS.forEach(s => {
+            document.getElementById(s.dot).className = 'dot done';
+            document.getElementById(s.lbl).className = 'lbl done';
+          });
+          // Redirect to results page
+          setTimeout(() => { window.location.href = '/results'; }, 600);
+
+        } else if (data.status === 'failed') {
+          // Show error
+          STEPS.forEach(s => {
+            if (document.getElementById(s.dot).className.includes('active')) {
+              document.getElementById(s.dot).className = 'dot error';
+              document.getElementById(s.lbl).className = 'lbl error';
+            }
+          });
+          const box = document.getElementById('errorBox');
+          box.style.display = 'block';
+          box.innerHTML = `❌ Agent failed:<br><pre style="font-size:11px;white-space:pre-wrap;">${data.error || 'Unknown error'}</pre>
+            <a class="back-btn" href="/">← Try Again</a>`;
+
+        } else {
+          // Still running — poll again
+          setTimeout(poll, POLL_MS);
+        }
+      })
+      .catch(() => setTimeout(poll, POLL_MS));
+  }
+
+  // Start polling after 3s (give agent time to start)
+  setTimeout(poll, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Run History — Andor Tech</title>
+<style>
+  :root{
+    --primary:#1a73e8;--primary-dark:#1557b0;
+    --success:#188038;--success-bg:#e6f4ea;
+    --danger:#c5221f;--danger-bg:#fce8e6;
+    --text:#202124;--muted:#5f6368;
+    --border:#dadce0;--bg:#f8f9fa;--card:#fff;--row-alt:#f1f3f4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);}
+
+  .header{
+    background:linear-gradient(135deg,#1a73e8,#0d47a1);
+    color:white;padding:18px 32px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .header-left{display:flex;flex-direction:column;gap:2px;}
+  .company-name{font-size:18px;font-weight:900;opacity:1;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;}
+  .header h1{font-size:14px;font-weight:400;color:rgba(255,255,255,0.92);}
+  .back-btn{
+    background:rgba(255,255,255,.15);color:white;
+    border:1px solid rgba(255,255,255,.4);border-radius:6px;
+    padding:8px 18px;font-size:13px;text-decoration:none;
+    font-weight:600;transition:background .15s;
+  }
+  .back-btn:hover{background:rgba(255,255,255,.28);}
+
+  .container{max-width:1500px;margin:0 auto;padding:28px 32px;}
+  .section-title{
+    font-size:15px;font-weight:700;margin-bottom:16px;
+    padding-bottom:8px;border-bottom:2px solid var(--primary);
+  }
+  .card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:10px;padding:20px;margin-bottom:28px;
+  }
+
+  .table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    background:var(--primary);color:white;padding:11px 14px;
+    text-align:left;font-weight:600;white-space:nowrap;
+    border-right:1px solid #4a8cf7;
+  }
+  thead th:last-child{border-right:none;}
+  tbody tr:nth-child(even){background:var(--row-alt);}
+  tbody tr:hover{background:#e8f0fe;}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  td.idx{font-weight:700;color:var(--primary);white-space:nowrap;}
+  td.nowrap{white-space:nowrap;}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:4px 11px;border-radius:99px;
+    font-size:12px;font-weight:700;white-space:nowrap;
+  }
+  .badge-sow {background:#e8f0fe;color:var(--primary);}
+  .badge-po  {background:#f3e8ff;color:#7b1fa2;}
+  .badge-word{background:#e8f0fe;color:var(--primary);}
+  .badge-pdf {background:#fff3e0;color:#e65100;}
+  .badge-pass{background:var(--success-bg);color:var(--success);}
+  .badge-fail{background:var(--danger-bg);color:var(--danger);}
+
+  .val-toggle{
+    font-size:12px;color:var(--primary);cursor:pointer;
+    background:none;border:none;padding:0;font-weight:600;
+    text-decoration:underline;white-space:nowrap;
+  }
+  .val-box{
+    display:none;margin-top:8px;
+    background:#f8f9fa;border:1px solid var(--border);
+    border-radius:6px;padding:12px;
+    font-family:Consolas,monospace;font-size:11px;
+    white-space:pre;overflow-x:auto;max-height:220px;overflow-y:auto;
+  }
+  .val-box.open{display:block;}
+  .empty{text-align:center;padding:60px;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="company-name">Andor Tech</div>
+    <h1>🗂️ Document Upload History</h1>
+  </div>
+  <a href="/" class="back-btn">← Back to Agent</a>
+</div>
+
+<div class="container">
+
+  <!-- ══ FILE UPLOADS TABLE ══ -->
+  <div class="card">
+    <div class="section-title">📂 File Uploads</div>
+    {% if runs %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Filename</th>
+            <th>Document Type</th>
+            <th>File Format</th>
+            <th>Uploaded At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set seen = namespace(ids=[]) %}
+          {% for r in runs %}
+
+            {% if r.sow_upload_id and r.sow_upload_id not in seen.ids %}
+              {% set _ = seen.ids.append(r.sow_upload_id) %}
+              <tr>
+                <td class="idx">{{ r.sow_upload_id }}</td>
+                <td>📄 {{ r.sow_filename or '—' }}</td>
+                <td><span class="badge badge-sow">SOW</span></td>
+                <td>
+                  {% if r.sow_format == 'Word' %}
+                    <span class="badge badge-word">📝 Word</span>
+                  {% elif r.sow_format == 'PDF' %}
+                    <span class="badge badge-pdf">📕 PDF</span>
+                  {% else %}{{ r.sow_format or '—' }}{% endif %}
+                </td>
+                <td class="nowrap">{{ r.ran_at | string | truncate(19, True, '') }}</td>
+              </tr>
+            {% endif %}
+
+            {% if r.po_upload_id and r.po_upload_id not in seen.ids %}
+              {% set _ = seen.ids.append(r.po_upload_id) %}
+              <tr>
+                <td class="idx">{{ r.po_upload_id }}</td>
+                <td>🧾 {{ r.po_filename or '—' }}</td>
+                <td><span class="badge badge-po">PO</span></td>
+                <td>
+                  {% if r.po_format == 'Word' %}
+                    <span class="badge badge-word">📝 Word</span>
+                  {% elif r.po_format == 'PDF' %}
+                    <span class="badge badge-pdf">📕 PDF</span>
+                  {% else %}{{ r.po_format or '—' }}{% endif %}
+                </td>
+                <td class="nowrap">{{ r.ran_at | string | truncate(19, True, '') }}</td>
+              </tr>
+            {% endif %}
+
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">No uploads yet.</div>
+    {% endif %}
+  </div>
+
+  <!-- ══ AGENT RUNS TABLE ══ -->
+  <div class="card">
+    <div class="section-title">🤖 Agent Runs</div>
+    {% if runs %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Run At</th>
+            <th>Company</th>
+            <th>SOW File</th>
+            <th>PO File</th>
+            <th>Validation</th>
+            <th>Issues</th>
+            <th>Validation Table</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in runs %}
+          <tr>
+            <td class="idx">{{ r.id }}</td>
+            <td class="nowrap">{{ r.ran_at | string | truncate(19, True, '') }}</td>
+            <td>{{ r.company_name or '—' }}</td>
+
+            <td class="nowrap">
+              {% if r.sow_filename %}
+                📄 {{ r.sow_filename }}
+                {% if r.sow_format == 'Word' %}
+                  <span class="badge badge-word">📝 Word</span>
+                {% elif r.sow_format == 'PDF' %}
+                  <span class="badge badge-pdf">📕 PDF</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+
+            <td class="nowrap">
+              {% if r.po_filename %}
+                🧾 {{ r.po_filename }}
+                {% if r.po_format == 'Word' %}
+                  <span class="badge badge-word">📝 Word</span>
+                {% elif r.po_format == 'PDF' %}
+                  <span class="badge badge-pdf">📕 PDF</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+
+            <td class="nowrap">
+              {% if r.validation_ok %}
+                <span class="badge badge-pass"> Passed</span>
+              {% else %}
+                <span class="badge badge-fail"> Failed</span>
+              {% endif %}
+            </td>
+
+            <td>{{ r.issues_count if r.issues_count is not none else '—' }}</td>
+
+            <td style="min-width:140px;">
+              {% if r.validation_result and r.validation_result != 'No data' %}
+                <button class="val-toggle" onclick="toggleVal(this)">📋 Show table</button>
+                <div class="val-box">{{ r.validation_result }}</div>
+              {% else %}
+                <span style="color:var(--muted);">—</span>
+              {% endif %}
+            </td>
+
+            <td style="max-width:180px;color:var(--danger);font-size:12px;">
+              {% if r.error %}
+                {{ r.error[:100] }}{% if r.error|length > 100 %}…{% endif %}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">No agent runs yet.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  function toggleVal(btn) {
+    const box = btn.nextElementSibling;
+    const open = box.classList.toggle('open');
+    btn.textContent = open ? '📋 Hide table' : '📋 Show table';
+  }
+</script>
+</body>
+</html>
